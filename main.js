@@ -5,6 +5,14 @@ var qs = require('querystring')
 var template = require('./lib/template.js')
 var path = require('path');
 var sanitizeHtml = require('sanitize-html')
+var mysql = require('mysql')
+var db = mysql.createConnection({
+  host : "localhost",
+  user : "root",
+  password : "920708",
+  database : "sys"
+})
+db.connect()
 
 var app = http.createServer(function(request,response){
     var _url = request.url;
@@ -12,33 +20,55 @@ var app = http.createServer(function(request,response){
     var pathname = url.parse(_url, true).pathname;
     if(pathname === '/'){
       if(queryData.id === undefined){
-        fs.readdir('./data', function(error, filelist){
+        db.query(`SELECT * FROM topic`, function(error, results){
+          console.log(results)
           var title = 'Welcome';
           var description = 'Hello, Node.js';
-          var list = template.list(filelist);
+          var list = template.list(results);
           var html = template.html(title, list, `<h2>${title}</h2>${description}`, '<a href="/create">create</a>');
           response.writeHead(200);
           response.end(html);
         })
       } else {
-        fs.readdir('./data', function(error, filelist){
-          var filterPath = path.parse(queryData.id).base
-          fs.readFile(`data/${filterPath}`, 'utf8', function(err, description){
-            var title = queryData.id;
-            var sanitizedTitle =sanitizeHtml(title)
-            var sanitzieDescription = sanitizeHtml(description, {
-              allowedTags:['h1']
-            })
-            var list = template.list(filelist);
-            var html = template.html(sanitizedTitle, list, `<h2>${sanitizedTitle}</h2>${sanitzieDescription}`,`<a href="/create">create</a> <a href="/update?id=${sanitizedTitle}">update</a> 
-            <form action="delete_process" method="post">
-              <input type="hidden" name="id" value="${title}">
-              <input type="submit" value="delete">
-            </form`);
+        // fs.readdir('./data', function(error, filelist){
+        //   var filterPath = path.parse(queryData.id).base
+        //   fs.readFile(`data/${filterPath}`, 'utf8', function(err, description){
+        //     var title = queryData.id;
+        //     var sanitizedTitle =sanitizeHtml(title)
+        //     var sanitzieDescription = sanitizeHtml(description, {
+        //       allowedTags:['h1']
+        //     })
+        //     var list = template.list(filelist);
+        //     var html = template.html(sanitizedTitle, list, `<h2>${sanitizedTitle}</h2>${sanitzieDescription}`,`<a href="/create">create</a> <a href="/update?id=${sanitizedTitle}">update</a> 
+        //     <form action="delete_process" method="post">
+        //       <input type="hidden" name="id" value="${title}">
+        //       <input type="submit" value="delete">
+        //     </form`);
+        //     response.writeHead(200);
+        //     response.end(html);
+        //   });
+        // });
+        db.query(`SELECT * FROM topic`, function(error, results){
+          if(error) {
+            throw error
+          }
+          db.query(`SELECT * FROM topic WHERE id=?`,[queryData.id], function(error2, result){
+            if(error2) {
+              throw error2
+            }
+            console.log(results)
+            var title = result[0].title;
+            var description = result[0].description;
+            var list = template.list(results);
+            var html = template.html(title, list, `<h2>${title}</h2>${description}`, `<a href="/create">create</a> <a href="/update?id=${queryData.id}">update</a> 
+                <form action="delete_process" method="post">
+                   <input type="hidden" name="id" value="${queryData.id}">
+                   <input type="submit" value="delete">
+               </form`)
             response.writeHead(200);
             response.end(html);
-          });
-        });
+          })  
+        })
       }
     } else if(pathname === '/create') {
         fs.readdir('./data', function(error, filelist){
